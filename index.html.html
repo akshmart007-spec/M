@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-User Advanced Sync Master</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        body { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+
+    <header class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-users-gear text-2xl bg-white text-blue-700 p-2 rounded-lg shadow"></i>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide">Multi-User Direct Profile Sync</h1>
+                    <p class="text-xs text-blue-200">Scan Staff QR to Lock Profile & Sync Live</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+        <!-- Left Sidebar: User Manager & QR Codes -->
+        <div id="sidebarSection" class="lg:col-span-1 bg-white rounded-xl shadow-md p-5 border border-gray-200 space-y-4">
+            <h2 class="font-bold text-gray-800 text-md flex items-center">
+                <i class="fa-solid fa-user-plus text-blue-600 mr-2"></i> Add Staff / User
+            </h2>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Enter Name:</label>
+                <input type="text" id="userNameInput" placeholder="Staff Name (e.g. Rahul)" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button onclick="addUser()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-semibold shadow transition">
+                <i class="fa-solid fa-qrcode mr-1"></i> Generate User & QR Code
+            </button>
+
+            <hr class="my-4">
+
+            <h3 class="font-bold text-gray-700 text-xs uppercase tracking-wider mb-2">Active Users & QR Codes</h3>
+            <div id="usersListContainer" class="space-y-3 max-h-[500px] overflow-y-auto">
+                <p class="text-xs text-gray-400 italic">No users added yet.</p>
+            </div>
+        </div>
+
+        <!-- Right Area: Active Workspace & Live Stream -->
+        <div class="lg:col-span-3 space-y-6">
+            
+            <!-- Active User Workspace -->
+            <div id="activeWorkspace" class="bg-white rounded-xl shadow-md p-5 border border-gray-200 hidden">
+                <div class="flex flex-wrap justify-between items-center mb-4 pb-3 border-b">
+                    <div>
+                        <span class="text-xs bg-indigo-100 text-indigo-800 font-bold px-2.5 py-1 rounded-full">Locked Profile Session</span>
+                        <h2 id="activeUserNameTitle" class="text-xl font-bold text-gray-800 mt-1">-</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Total Captured Items: <span id="userItemCount" class="font-bold text-blue-600">0</span></p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="openScannerModal()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-semibold shadow transition">
+                            <i class="fa-solid fa-barcode mr-1"></i> Scan Item QR
+                        </button>
+                        <button onclick="switchUserSession()" class="bg-gray-600 hover:bg-gray-700 text-white px-3 py-2 rounded-lg text-sm font-semibold shadow transition">
+                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Switch Profile
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Native Camera Upload Box -->
+                    <div class="bg-gray-50 p-4 rounded-xl border flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-xs text-gray-700 mb-2"><i class="fa-solid fa-camera mr-1"></i> Native Camera Photo</h3>
+                            <p class="text-xs text-gray-500 mb-3">Snap photo directly for this profile.</p>
+                        </div>
+                        <div>
+                            <input type="file" id="nativeCameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleNativePhotoCapture(event)">
+                            <button onclick="document.getElementById('nativeCameraInput').click()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-lg text-xs font-semibold shadow">
+                                <i class="fa-solid fa-camera-retro mr-1"></i> Open Native Camera & Add Photo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scanned & Manual Details -->
+                    <div class="bg-gray-50 p-4 rounded-xl border flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-xs text-gray-700 mb-2"><i class="fa-solid fa-file-lines mr-1"></i> QR Code Data (Scan or Manual Type)</h3>
+                            <div class="flex space-x-2">
+                                <input type="text" id="scannedItemData" placeholder="Scan or type code..." class="w-full p-2 border rounded-lg text-sm font-bold text-blue-700 bg-white">
+                                <button onclick="saveManualRecord()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-xs font-semibold">Add</button>
+                            </div>
+                        </div>
+                        <div id="syncAlert" class="text-xs text-green-600 font-semibold hidden mt-2">
+                            <i class="fa-solid fa-circle-check mr-1"></i> Added successfully to profile!
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Central Dashboard Stream -->
+            <div class="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+                <div class="flex flex-wrap justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800"><i class="fa-solid fa-laptop text-blue-600 mr-2"></i> Live Central Dashboard</h2>
+                        <p class="text-xs text-gray-500">Total System Records: <span id="totalSystemCount" class="font-bold text-indigo-600">0</span></p>
+                    </div>
+                    <div id="filterBadge" class="text-xs bg-gray-100 text-gray-700 font-semibold px-3 py-1.5 rounded-lg">
+                        Showing: All Profiles
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-600 uppercase">
+                                <th class="p-3">User / Staff</th>
+                                <th class="p-3">Timestamp</th>
+                                <th class="p-3">QR Data</th>
+                                <th class="p-3">Photo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="liveTableBody" class="divide-y divide-gray-200 text-sm">
+                            <tr>
+                                <td colspan="4" class="p-6 text-center text-gray-400 text-xs">
+                                    <i class="fa-solid fa-inbox text-2xl mb-2 block"></i>
+                                    No records found.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+ <!-- QR Scanner Modal -->
+    <div id="scannerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl max-w-md w-full p-5 shadow-2xl relative">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-bold text-gray-800 text-md"><i class="fa-solid fa-qrcode text-blue-600 mr-2"></i> Scan Item QR Code</h3>
+                <button onclick="closeScannerModal()" class="text-gray-500 hover:text-gray-700 font-bold"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="reader" class="w-full rounded-lg overflow-hidden border bg-black min-h-[220px]"></div>
+            <p class="text-xs text-gray-500 mt-2 text-center">Align QR code inside the camera frame.</p>
+        </div>
+    </div>
+
+    <!-- Fullscreen Image Zoom Modal -->
+    <div id="imageZoomModal" class="fixed inset-0 bg-black bg-opacity-90 hidden flex flex-col items-center justify-center z-50 p-4">
+        <div class="relative max-w-4xl w-full flex flex-col items-center">
+            <img id="zoomedImageElement" class="max-h-[75vh] object-contain rounded-lg shadow-2xl mb-4 border border-gray-700" src="" alt="Zoomed Photo">
+            <div class="flex space-x-4">
+                <a id="downloadImageBtn" href="#" download="scanned-photo.jpg" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow flex items-center">
+                    <i class="fa-solid fa-download mr-2"></i> Download
+                </a>
+                <button onclick="closeImageZoom()" class="bg-gray-700 hover:bg-gray-600 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow flex items-center">
+                    <i class="fa-solid fa-arrow-left mr-2"></i> Back
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        const FIREBASE_DB_URL = "https://YOUR_FIREBASE_APP-default-rtdb.firebaseio.com/";
+
+        let db = null;
+        let isFirebaseConnected = false;
+        let currentUser = null;
+        let html5QrCode = null;
+        let allRecords = [];
+        let usersList = JSON.parse(localStorage.getItem('multi_users_list') || '[]');
+        let selectedFilterUser = 'ALL';
+
+        function playBeep(isError = false) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = isError ? 'sawtooth' : 'sine';
+                osc.frequency.value = isError ? 250 : 800;
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + (isError ? 0.3 : 0.15));
+            } catch(e) {}
+        }
+
+        function initFirebase() {
+            try {
+                if(!FIREBASE_DB_URL.includes("YOUR_FIREBASE_APP")) {
+                    if(firebase.apps.length === 0) {
+                        firebase.initializeApp({ databaseURL: FIREBASE_DB_URL });
+                    }
+                    db = firebase.database();
+                    isFirebaseConnected = true;
+                    listenFirebaseData();
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        window.onload = function() {
+            initFirebase();
+            renderUsersList();
+            loadRecordsLocallyOrFirebase();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const scanUserId = urlParams.get('userId');
+            if(scanUserId) {
+                setTimeout(() => {
+                    selectUser(scanUserId);
+                }, 300);
+            }
+        };
+
+        function addUser() {
+            const name = document.getElementById('userNameInput').value.trim();
+            if(!name) {
+                alert('Please enter staff name.');
+                return;
+            }
+            const userId = 'USER-' + Date.now();
+            const userObj = { id: userId, name: name };
+            usersList.push(userObj);
+            localStorage.setItem('multi_users_list', JSON.stringify(usersList));
+            document.getElementById('userNameInput').value = "";
+            renderUsersList();
+            selectUser(userId);
+        }
+
+        function renderUsersList() {
+            const container = document.getElementById('usersListContainer');
+            if(usersList.length === 0) {
+                container.innerHTML = `<p class="text-xs text-gray-400 italic">No users added yet.</p>`;
+                return;
+            }
+            let html = '';
+            usersList.forEach(u => {
+                const activeBorder = currentUser && currentUser.id === u.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white';
+                const currentUrl = window.location.href.split('?')[0];
+                const qrDataUrl = `${currentUrl}?userId=${u.id}`;
+                const qrImgApi = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrDataUrl)}`;
+                const userCount = allRecords.filter(r => r.userName === u.name).length;
+
+                html += `<div class="p-3 rounded-xl border ${activeBorder} shadow-sm space-y-2 transition">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-sm text-gray-800 cursor-pointer" onclick="selectUser('${u.id}')"><i class="fa-solid fa-user text-blue-600 mr-1"></i> ${u.name}</span>
+                        <div class="space-x-1">
+                            <button onclick="filterByUser('${u.name}')" class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-700 font-semibold" title="View Stats">(${userCount})</button>
+                            <button onclick="deleteUser('${u.id}')" class="text-red-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-3 bg-white p-2 rounded-lg border">
+                        <img src="${qrImgApi}" class="w-16 h-16 object-contain" alt="QR">
+                        <div class="text-[11px] text-gray-500 leading-tight">
+                            <span class="font-semibold text-blue-600">Scan to Lock Profile</span><br>Opens directly for ${u.name}.
+                        </div>
+                    </div>
+                    <button onclick="selectUser('${u.id}')" class="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs py-1.5 rounded font-semibold">Open Workspace</button>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function selectUser(id) {
+            currentUser = usersList.find(u => u.id === id);
+            if(currentUser) {
+                document.getElementById('activeWorkspace').classList.remove('hidden');
+                document.getElementById('activeUserNameTitle').innerText = currentUser.name;
+                // Agar mobile se scan karke aaye hain, toh sidebar hide karke sirf workspace dikhayenge taaki confusion na ho
+                document.getElementById('sidebarSection').classList.add('hidden');
+                updateUserCounts();
+                renderUsersList();
+            }
+        }
+
+        function switchUserSession() {
+            currentUser = null;
+            document.getElementById('activeWorkspace').classList.add('hidden');
+            document.getElementById('sidebarSection').classList.remove('hidden');
+            // URL se userId parameter hata dein
+            window.history.replaceState({}, document.title, window.location.pathname);
+            renderUsersList();
+        }
+
+        function deleteUser(id) {
+            usersList = usersList.filter(u => u.id !== id);
+            localStorage.setItem('multi_users_list', JSON.stringify(usersList));
+            if(currentUser && currentUser.id === id) {
+                switchUserSession();
+            }
+            renderUsersList();
+        }
+
+        function filterByUser(name) {
+            selectedFilterUser = name;
+            document.getElementById('filterBadge').innerText = "Filtered by: " + name;
+            renderTable(allRecords);
+        }
+
+        function openScannerModal() {
+            if(!currentUser) {
+                alert('Please select a user session first.');
+                return;
+            }
+            document.getElementById('scannerModal').classList.remove('hidden');
+            if(!html5QrCode) {
+                html5QrCode = new Html5Qrcode("reader");
+            }
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 200, height: 200 } },
+                (decodedText) => {
+                    playBeep(false);
+                    document.getElementById('scannedItemData').value = decodedText;
+                    closeScannerModal();
+                    checkDuplicateAndSave(decodedText);
+                },
+                (err) => {}
+            ).catch(err => alert("Camera permission error."));
+        }
+
+        function closeScannerModal() {
+            if(html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('scannerModal').classList.add('hidden');
+                }).catch(err => document.getElementById('scannerModal').classList.add('hidden'));
+            } else {
+                document.getElementById('scannerModal').classList.add('hidden');
+            }
+        }
+
+        function checkDuplicateAndSave(qrData) {
+            const exists = allRecords.some(r => r.qrData === qrData);
+            if(exists) {
+                playBeep(true);
+                const confirmAdd = confirm("⚠️ Already Scanned! This item is already in the list. Do you want to add it again?");
+                if(!confirmAdd) {
+                    return;
+                }
+            }
+            document.getElementById('nativeCameraInput').click();
+        }
+
+        function saveManualRecord() {
+            if(!currentUser) {
+                alert('Please select a user session first.');
+                return;
+            }
+            const qrData = document.getElementById('scannedItemData').value.trim();
+            if(!qrData) {
+                alert('Please enter or scan QR code data.');
+                return;
+            }
+            checkDuplicateAndSave(qrData);
+        }
+
+        function handleNativePhotoCapture(event) {
+            const file = event.target.files[0];
+            if(!file || !currentUser) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageDataUrl = e.target.result;
+                const qrData = document.getElementById('scannedItemData').value.trim() || "ITEM-" + Math.floor(1000 + Math.random() * 9000);
+                
+                const record = {
+                    id: 'REC-' + Date.now(),
+                    userName: currentUser.name, // Yeh ensure karega ki data usi user ki profile mein jaye
+                    timestamp: new Date().toLocaleString(),
+                    qrData: qrData,
+                    photo: imageDataUrl
+                };
+
+                saveRecord(record);
+                document.getElementById('nativeCameraInput').value = "";
+            };
+            reader.readAsDataURL(file);
+        }
+      function saveRecord(record) {
+            if(isFirebaseConnected && db) {
+                db.ref('multi_sync_records/' + record.id).set(record).then(() => {
+                    showSyncAlert();
+                });
+            } else {
+                let localRecs = JSON.parse(localStorage.getItem('multi_local_recs') || '[]');
+                localRecs.unshift(record);
+                localStorage.setItem('multi_local_recs', JSON.stringify(localRecs));
+                allRecords = localRecs;
+                renderUsersList();
+                renderTable(allRecords);
+                updateUserCounts();
+                showSyncAlert();
+            }
+        }
+
+        function showSyncAlert() {
+            const alertBox = document.getElementById('syncAlert');
+            alertBox.classList.remove('hidden');
+            setTimeout(() => alertBox.classList.add('hidden'), 3000);
+        }
+
+        function listenFirebaseData() {
+            if(!db) return;
+            db.ref('multi_sync_records').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if(data) {
+                    allRecords = Object.values(data).reverse();
+                } else {
+                    allRecords = [];
+                }
+                renderUsersList();
+                renderTable(allRecords);
+                updateUserCounts();
+            });
+        }
+
+        function loadRecordsLocallyOrFirebase() {
+            if(!isFirebaseConnected) {
+                allRecords = JSON.parse(localStorage.getItem('multi_local_recs') || '[]');
+                renderUsersList();
+                renderTable(allRecords);
+                updateUserCounts();
+            }
+        }
+
+        function updateUserCounts() {
+            if(currentUser) {
+                const count = allRecords.filter(r => r.userName === currentUser.name).length;
+                document.getElementById('userItemCount').innerText = count;
+            }
+            document.getElementById('totalSystemCount').innerText = allRecords.length;
+        }
+
+        function renderTable(records) {
+            const tbody = document.getElementById('liveTableBody');
+            let filtered = records;
+            if(selectedFilterUser !== 'ALL') {
+                filtered = records.filter(r => r.userName === selectedFilterUser);
+            }
+
+            if(!filtered || filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 text-xs"><i class="fa-solid fa-inbox text-2xl mb-2 block"></i>No records found.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(rec => {
+                html += `<tr class="hover:bg-gray-50 transition">
+                    <td class="p-3 font-bold text-indigo-600">${rec.userName}</td>
+                    <td class="p-3 text-xs text-gray-500">${rec.timestamp}</td>
+                    <td class="p-3 font-semibold text-blue-600">${rec.qrData}</td>
+                    <td class="p-3">
+                        <img src="${rec.photo}" onclick="openImageZoom('${rec.photo}')" class="w-12 h-12 object-cover rounded-lg border shadow-sm cursor-pointer hover:scale-105 transition" title="Click to Zoom">
+                    </td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+            updateUserCounts();
+        }
+
+        function openImageZoom(photoUrl) {
+            document.getElementById('zoomedImageElement').src = photoUrl;
+            document.getElementById('downloadImageBtn').href = photoUrl;
+            document.getElementById('imageZoomModal').classList.remove('hidden');
+        }
+
+        function closeImageZoom() {
+            document.getElementById('imageZoomModal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
